@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SmilePayEinvoice>
+    <Status>-10021</Status>
+    <Desc>統一編號(Buyer_id)格式錯誤</Desc>
+    <Grvc>SEI1000034</Grvc>
+    <orderno>YSCART-12346</orderno>
+    <data_id>YSCART-12346</data_id>
+    <InvoiceNumber></InvoiceNumber>
+    <RandomNumber></RandomNumber>
+    <InvoiceDate></InvoiceDate>
+    <InvoiceTime></InvoiceTime>
+    <InvoiceType></InvoiceType>
+    <CarrierID></CarrierID>
+</SmilePayEinvoice>

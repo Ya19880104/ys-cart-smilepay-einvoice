@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SmilePayEinvoice>
+    <Status>0</Status>
+    <Desc></Desc>
+    <Grvc>SEI1000034</Grvc>
+    <InvoiceNumber>HG00631928</InvoiceNumber>
+    <RandomNumber>7572</RandomNumber>
+    <InvoiceDate>2026/05/26</InvoiceDate>
+    <InvoiceTime>15:33:33</InvoiceTime>
+    <InvoiceType>B2C</InvoiceType>
+    <InvoiceStatus>issued</InvoiceStatus>
+    <CarrierType>3J0002</CarrierType>
+    <CarrierID>/ABCD123</CarrierID>
+    <AllAmount>1000</AllAmount>
+</SmilePayEinvoice>

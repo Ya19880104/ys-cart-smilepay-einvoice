@@ -1,0 +1,244 @@
+# YS CART SmilePay E-Invoice — 繁體中文（zh_TW）翻譯
+# Copyright (C) 2026 YANGSHEEP DESIGN
+# This file is distributed under the same license as the YS CART SmilePay E-Invoice plugin.
+#
+# 註：本外掛開發語言即為繁體中文（zh_TW），此 .po 提供「原文 = 譯文」鏡像，
+# 方便日後新增其他語系時直接以本檔為翻譯範本。
+msgid ""
+msgstr ""
+"Project-Id-Version: ys-cart-smilepay-einvoice 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/Ya19880104/ys-cart-smilepay-einvoice/issues\n"
+"POT-Creation-Date: 2026-05-26 00:00+0800\n"
+"PO-Revision-Date: 2026-05-26 00:00+0800\n"
+"Last-Translator: YANGSHEEP DESIGN <gn00433798@gmail.com>\n"
+"Language-Team: Traditional Chinese <gn00433798@gmail.com>\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: YS CART SmilePay E-Invoice / hand-authored\n"
+"X-Domain: ys-cart-smilepay-einvoice\n"
+
+# ─────────────────────────────────────────────────────
+# 共用：權限 / 通用 UI
+# ─────────────────────────────────────────────────────
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "權限不足"
+msgstr "權限不足"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用"
+msgstr "啟用"
+
+#: src/Admin/YSSmilePayAdmin.php templates/admin/settings.php
+msgid "速買配電子發票"
+msgstr "速買配電子發票"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "速買配發票"
+msgstr "速買配發票"
+
+#: src/Admin/YSSmilePayAdmin.php templates/admin/settings.php
+msgid "速買配電子發票（SmilePay）"
+msgstr "速買配電子發票（SmilePay）"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "電商系統 / 電子發票 / 速買配 SmilePay"
+msgstr "電商系統 / 電子發票 / 速買配 SmilePay"
+
+# ─────────────────────────────────────────────────────
+# 設定欄位 — labels
+# ─────────────────────────────────────────────────────
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "電子發票帳號 (Grvc)"
+msgstr "電子發票帳號 (Grvc)"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "由速買配提供。試用帳號：SEI1000034"
+msgstr "由速買配提供。試用帳號：SEI1000034"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "驗證碼 (Verify_key)"
+msgstr "驗證碼 (Verify_key)"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "由速買配提供，請於速買配後台「API 設定」取得，並請參閱外掛 README 取得試用憑證資訊。"
+msgstr "由速買配提供，請於速買配後台「API 設定」取得，並請參閱外掛 README 取得試用憑證資訊。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "使用測試環境"
+msgstr "使用測試環境"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "勾選後 API 走 api_test/* 端點，不會產生真實發票。"
+msgstr "勾選後 API 走 api_test/* 端點，不會產生真實發票。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "自動開立時機"
+msgstr "自動開立時機"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "關閉（僅手動開立）"
+msgstr "關閉（僅手動開立）"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "訂單轉為「處理中」時自動開立"
+msgstr "訂單轉為「處理中」時自動開立"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "訂單轉為「已完成」時自動開立"
+msgstr "訂單轉為「已完成」時自動開立"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "在指定狀態轉換時自動呼叫 SmilePay API 開立發票。"
+msgstr "在指定狀態轉換時自動呼叫 SmilePay API 開立發票。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用速買配會員載具 (EJ0113)"
+msgstr "啟用速買配會員載具 (EJ0113)"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "消費者結帳時可選擇速買配會員載具。啟用前必須先在速買配後台啟用對應載具功能。"
+msgstr "消費者結帳時可選擇速買配會員載具。啟用前必須先在速買配後台啟用對應載具功能。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用手機條碼載具 (3J0002)"
+msgstr "啟用手機條碼載具 (3J0002)"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用前必須先在速買配後台啟用對應載具功能。"
+msgstr "啟用前必須先在速買配後台啟用對應載具功能。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用自然人憑證載具 (CQ0001)"
+msgstr "啟用自然人憑證載具 (CQ0001)"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "啟用捐贈愛心碼"
+msgstr "啟用捐贈愛心碼"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "消費者結帳時可選擇捐贈，輸入愛心碼後直接捐出整筆發票。"
+msgstr "消費者結帳時可選擇捐贈，輸入愛心碼後直接捐出整筆發票。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "POS System ID"
+msgstr "POS System ID"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "營業人自定義系統代號，用於速買配後台識別來源。"
+msgstr "營業人自定義系統代號，用於速買配後台識別來源。"
+
+# ─────────────────────────────────────────────────────
+# 設定頁 — UI 字串（template & admin class）
+# ─────────────────────────────────────────────────────
+
+#: templates/admin/settings.php
+msgid "速買配電子發票設定"
+msgstr "速買配電子發票設定"
+
+#: templates/admin/settings.php
+msgid "速買配（SmilePay / 訊航科技）電子發票 API"
+msgstr "速買配（SmilePay / 訊航科技）電子發票 API"
+
+#: templates/admin/settings.php
+#, php-format
+msgid "申請帳號：%1$s／API 文件：%2$s"
+msgstr "申請帳號：%1$s／API 文件：%2$s"
+
+#: templates/admin/settings.php
+msgid "試用憑證請參閱外掛 README（README.md / readme.txt）的「試用憑證」段落取得 Grvc 與 Verify_key。使用試用憑證時，請務必勾選下方「使用測試環境」，所有 API 將走 api_test/* 端點不會產生真實發票。"
+msgstr "試用憑證請參閱外掛 README（README.md / readme.txt）的「試用憑證」段落取得 Grvc 與 Verify_key。使用試用憑證時，請務必勾選下方「使用測試環境」，所有 API 將走 api_test/* 端點不會產生真實發票。"
+
+#: templates/admin/settings.php
+msgid "啟用速買配發票"
+msgstr "啟用速買配發票"
+
+#: templates/admin/settings.php
+msgid "啟用後，將出現在「電子發票設定 → 作用中供應商」清單中。"
+msgstr "啟用後，將出現在「電子發票設定 → 作用中供應商」清單中。"
+
+#: templates/admin/settings.php
+msgid "啟用前請確認已填妥「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」，否則 SmilePay API 將無法呼叫。"
+msgstr "啟用前請確認已填妥「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」，否則 SmilePay API 將無法呼叫。"
+
+#: templates/admin/settings.php
+msgid "必填"
+msgstr "必填"
+
+#: templates/admin/settings.php
+msgid "（已設定，留空保持原值）"
+msgstr "（已設定，留空保持原值）"
+
+#: templates/admin/settings.php
+msgid "儲存設定"
+msgstr "儲存設定"
+
+#: templates/admin/settings.php
+msgid "儲存後請使用下方「測試連線」按鈕，以當前憑證打 SmilePay 測試環境驗證 Grvc / Verify_key 是否正確。"
+msgstr "儲存後請使用下方「測試連線」按鈕，以當前憑證打 SmilePay 測試環境驗證 Grvc / Verify_key 是否正確。"
+
+#: templates/admin/settings.php
+msgid "測試連線"
+msgstr "測試連線"
+
+#: templates/admin/settings.php
+msgid "以目前已儲存的「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」呼叫 SmilePay 測試環境，嘗試開立一張 NT$1 的假發票。本動作強制使用 api_test/* 端點，絕對不會產生真實發票。"
+msgstr "以目前已儲存的「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」呼叫 SmilePay 測試環境，嘗試開立一張 NT$1 的假發票。本動作強制使用 api_test/* 端點，絕對不會產生真實發票。"
+
+#: templates/admin/settings.php
+msgid "提示：請先儲存「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」再執行測試，未儲存的輸入值不會帶入測試請求。"
+msgstr "提示：請先儲存「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」再執行測試，未儲存的輸入值不會帶入測試請求。"
+
+# ─────────────────────────────────────────────────────
+# Notice 訊息 — handle_save / handle_test_connection
+# ─────────────────────────────────────────────────────
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "設定已儲存。"
+msgstr "設定已儲存。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "測試連線成功。"
+msgstr "測試連線成功。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "測試連線失敗。"
+msgstr "測試連線失敗。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "API client 尚未載入，請先確認 backend agent 已提供 YSSmilePayApiClient。"
+msgstr "API client 尚未載入，請先確認 backend agent 已提供 YSSmilePayApiClient。"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "請先填入「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」並儲存設定後再測試。"
+msgstr "請先填入「電子發票帳號 (Grvc)」與「驗證碼 (Verify_key)」並儲存設定後再測試。"
+
+#: src/Admin/YSSmilePayAdmin.php
+#, php-format
+msgid "測試連線成功。SmilePay 回應：%s"
+msgstr "測試連線成功。SmilePay 回應：%s"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "開立成功"
+msgstr "開立成功"
+
+#: src/Admin/YSSmilePayAdmin.php
+#, php-format
+msgid "測試連線失敗（代碼 %1$s）：%2$s"
+msgstr "測試連線失敗（代碼 %1$s）：%2$s"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "未知錯誤"
+msgstr "未知錯誤"
+
+#: src/Admin/YSSmilePayAdmin.php
+#, php-format
+msgid "測試連線發生例外：%s"
+msgstr "測試連線發生例外：%s"
+
+#: src/Admin/YSSmilePayAdmin.php
+msgid "YS CART 測試連線"
+msgstr "YS CART 測試連線"

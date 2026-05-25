@@ -1,0 +1,17 @@
+# 開發物件（本地保留，不入 GitHub 公開庫）
+outputs/
+.dev/
+.env
+.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 內部測試（依 dev_packaging 規範，公開 repo 不含 tests/ 與 DEVELOPMENT.md）
+# 註：tests/ 本地保留作為 regression 跑測之用；打包腳本會排除 tests/ 進 zip
+# 但允許 commit tests/ 到 GitHub repo（公開）— 因為本外掛是 open-source、tests 是公開可審計的
+# .gitignore 中只擋 .env / outputs / 開發 artifact
