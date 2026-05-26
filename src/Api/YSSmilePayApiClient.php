@@ -222,7 +222,7 @@ final class YSSmilePayApiClient {
 					// 不需特別 set Content-Type，wp_remote_post 會自動加
 					'Accept' => 'application/xml, text/xml',
 				],
-				'user-agent' => 'YS CART SmilePay Provider/' . ( defined( 'YS_SMILEPAY_VERSION' ) ? YS_SMILEPAY_VERSION : '1.0.0' ),
+				'user-agent' => 'YS CART SmilePay Provider/' . ( defined( 'YS_SMILEPAY_VERSION' ) ? YS_SMILEPAY_VERSION : '1.0.1' ),
 			]
 		);
 

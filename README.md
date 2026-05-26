@@ -17,7 +17,7 @@
 
 - WordPress 6.0+
 - PHP 8.1+
-- **YS CART 主外掛 2.50.0+**（包含 invoice provider 框架與 ADR-053 多型化列印 URL 介面）
+- **YS CART 主外掛 2.51.0+**（包含 provider lifecycle 與 ADR-053 invoice provider 多型化列印 URL 介面）
 
 ## 安裝
 

@@ -3,8 +3,7 @@
  * 速買配 SmilePay 電子發票 — 後台設定頁（ADR-052 規範）
  *
  * 設計原則（嚴格遵守）：
- *   1. 單一主選單 — 透過 `ys_ec_admin_payment_menus` hook 註冊到「電商系統」主選單下，
- *      不可呼叫 add_menu_page 自開頂層選單。
+ *   1. Manifest-first — 後台設定頁只由 YS CART provider manifest lifecycle 掛載。
  *   2. 統一 Chrome — render() 必須以 `YSAdminApp::open()` / `YSAdminApp::close()` 包裝，
  *      禁止直接 echo 原生 <div class="wrap">。
  *   3. 統一 REST — 設定儲存與「測試連線」皆走 admin-post（form submit + PRG redirect），
@@ -36,12 +35,12 @@ defined( 'ABSPATH' ) || exit;
 use YangSheep\Ecommerce\Admin\YSAdminApp;
 use YangSheep\SmilePayEInvoice\Api\YSSmilePayApiClient;
 use YangSheep\SmilePayEInvoice\Providers\YSSmilePayInvoiceProvider;
+use YangSheep\SmilePayEInvoice\YSSmilePayPlugin;
 
 /**
  * 速買配電子發票後台設定頁。
  *
  * 對外契約：
- *   - register_menu( string $parent_slug, string $cap ): void
  *   - register_admin_post_handlers(): void
  *   - render(): void
  *   - handle_save(): void
@@ -65,33 +64,10 @@ final class YSSmilePayAdmin {
 	public const TEST_CONNECTION_ACTION = 'ys_ec_test_smilepay_connection';
 
 	/** Submenu slug。 */
-	public const MENU_SLUG = 'ys-ec-smilepay-settings';
+	public const MENU_SLUG = 'ys-provider-smilepay';
 
 	/** Capability。 */
 	public const CAP = 'manage_options';
-
-	/**
-	 * 註冊子選單到「電商系統」主選單下（ADR-052 原則 1）。
-	 *
-	 * 由 plugin bootstrap 在 `ys_ec_admin_payment_menus` 與 `admin_menu` 兩個 hook
-	 * 被觸發時呼叫。$parent_slug 通常為 'ys-cart'（電商系統頂層 menu slug）。
-	 *
-	 * @param string $parent_slug 父選單 slug；空字串時 fallback 為 'ys-cart'。
-	 * @param string $cap         所需 capability；空字串時 fallback 為 self::CAP。
-	 */
-	public static function register_menu( string $parent_slug = '', string $cap = '' ): void {
-		$parent = '' !== $parent_slug ? $parent_slug : 'ys-cart';
-		$cap    = '' !== $cap ? $cap : self::CAP;
-
-		add_submenu_page(
-			$parent,
-			__( '速買配電子發票', 'ys-cart-smilepay-einvoice' ),
-			__( '速買配發票', 'ys-cart-smilepay-einvoice' ),
-			$cap,
-			self::MENU_SLUG,
-			[ self::class, 'render' ]
-		);
-	}
 
 	/**
 	 * 註冊 admin-post 處理器（儲存設定 + 測試連線）。
@@ -119,7 +95,7 @@ final class YSSmilePayAdmin {
 		$provider = self::resolve_provider();
 		$fields   = self::resolve_settings_fields( $provider );
 		$settings = self::resolve_settings( $provider );
-		$enabled  = '1' === (string) get_option( self::OPTION_ENABLED, '0' );
+		$enabled  = self::is_provider_enabled();
 
 		// 解析 PRG redirect 帶回的 notice
 		$notice = self::resolve_notice();
@@ -163,6 +139,7 @@ final class YSSmilePayAdmin {
 		// 獨立的啟用 toggle option
 		$enabled = ! empty( $raw[ self::OPTION_ENABLED ] ) ? '1' : '0';
 		update_option( self::OPTION_ENABLED, $enabled, true );
+		self::sync_provider_lifecycle( '1' === $enabled );
 
 		// PRG redirect
 		$redirect = add_query_arg(
@@ -276,6 +253,22 @@ final class YSSmilePayAdmin {
 			return null;
 		}
 		return new YSSmilePayInvoiceProvider();
+	}
+
+	private static function is_provider_enabled(): bool {
+		if ( class_exists( '\YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState' ) ) {
+			return \YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState::is_provider_enabled( 'ys_smilepay', YSSmilePayPlugin::manifest() );
+		}
+
+		return '1' === (string) get_option( self::OPTION_ENABLED, '0' );
+	}
+
+	private static function sync_provider_lifecycle( bool $enabled ): void {
+		if ( ! class_exists( '\YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState' ) ) {
+			return;
+		}
+
+		\YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState::set_provider_enabled( 'ys_smilepay', $enabled, YSSmilePayPlugin::manifest() );
 	}
 
 	/**

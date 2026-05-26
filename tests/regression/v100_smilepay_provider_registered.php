@@ -2,8 +2,8 @@
 /**
  * regression: ys-cart-smilepay-einvoice v1.0.0
  *
- * Assertion 目的：確認 SmilePay provider 透過 ys_ec_register_invoice_providers
- * 正確註冊到 YSInvoiceRegistry，且 class 完整實作 YSInvoiceProviderInterface。
+ * Assertion 目的：確認 SmilePay 走 manifest-first provider lifecycle，
+ * 並且 Invoice Provider class 完整實作 YSInvoiceProviderInterface。
  *
  * 雙路徑設計：
  *   - WP loaded（preferred）：實際 do_action + YSInvoiceRegistry::get('smilepay') 取 instance。
@@ -95,11 +95,35 @@ if ( $provider_loaded && $registry_loaded ) {
 	$plugin_main  = v100_pr_read( 'ys-cart-smilepay-einvoice.php' );
 	$bootstrap    = v100_pr_read( 'src/YSSmilePayPlugin.php' );
 	$provider_src = v100_pr_read( 'src/Providers/YSSmilePayInvoiceProvider.php' );
+	$manifest     = v100_pr_read( 'manifest.php' );
 
 	v100_pr_check(
-		'Bootstrap registers via ys_ec_register_invoice_providers hook',
-		false !== strpos( $bootstrap, "ys_ec_register_invoice_providers" )
-			|| false !== strpos( $plugin_main, 'ys_ec_register_invoice_providers' )
+		'Bootstrap registers provider manifest',
+		false !== strpos( $bootstrap, "ys_ec_provider_manifests" )
+			&& false !== strpos( $bootstrap, 'register_manifest' )
+			&& false !== strpos( $bootstrap, 'manifest.php' )
+	);
+
+	v100_pr_check(
+		'Manifest declares SmilePay invoice provider and lifecycle admin slug',
+		false !== strpos( $manifest, "'id'                 => 'ys_smilepay'" )
+			&& false !== strpos( $manifest, "'legacy_setting_key' => 'ys_ec_smilepay_enabled'" )
+			&& false !== strpos( $manifest, "'domains'            => [ 'invoice' ]" )
+			&& false !== strpos( $manifest, "'providers'" )
+			&& false !== strpos( $manifest, "'slug'                => 'ys-provider-smilepay'" )
+	);
+
+	v100_pr_check(
+		'Bootstrap does not use legacy external menu hook',
+		false === strpos( $bootstrap, "ys_ec_admin_payment_menus" )
+			&& false === strpos( $bootstrap, 'add_submenu_page' )
+	);
+
+	v100_pr_check(
+		'Invoice registration and file host are lifecycle-gated',
+		false !== strpos( $bootstrap, 'is_invoice_enabled()' )
+			&& false !== strpos( $bootstrap, "is_method_enabled(\n\t\t\t\t'invoice'" )
+			&& false !== strpos( $bootstrap, 'YSSmilePayInvoiceProvider::ID' )
 	);
 
 	v100_pr_check(

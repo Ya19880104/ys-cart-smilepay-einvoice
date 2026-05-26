@@ -4,7 +4,7 @@
  *
  * 仿 ys-cart `YSEcommerce` 與 ys-cart-affiliate `YSAffiliateSuite` 架構，本類別負責：
  *   1. 載入 i18n（init hook，priority 0，比預設早，避免 sub-system 字串先讀）
- *   2. 註冊 SmilePay Invoice Provider 到 YSInvoiceRegistry
+ *   2. 註冊 SmilePay manifest 與 lifecycle-gated Invoice Provider
  *   3. （ADR-053 強制）把 einvoice.smilepay.net 加入 ys_ec_invoice_file_allowed_hosts
  *   4. 註冊後台子選單到「電子發票」群組（透過 admin_menu hook，跟 ys-cart YSAdminMenu 同 phase）
  *   5. 註冊 admin_post handler 處理設定儲存
@@ -46,14 +46,7 @@ final class YSSmilePayPlugin {
 		// i18n（早於其他 sub-system）
 		add_action( 'init', [ $this, 'load_textdomain' ], 0 );
 
-		// 註冊 SmilePay provider 到 YSInvoiceRegistry。
-		//
-		// ys-cart 的 YSInvoiceRegistry::ensure_third_party_loaded() 同時觸發：
-		//   - do_action('ys_ec_register_invoice_providers')        (line 184)
-		//   - apply_filters('ys_ec_register_invoice_providers',[]) (line 195)
-		//
-		// 採用 ys-cart 原生 action 模式（其文件 @example），避免 add_filter callback 在
-		// do_action 路徑下被傳入意外型別參數造成 TypeError。
+		add_filter( 'ys_ec_provider_manifests', [ $this, 'register_manifest' ], 10, 1 );
 		add_action(
 			'ys_ec_register_invoice_providers',
 			[ $this, 'register_provider' ]
@@ -67,24 +60,16 @@ final class YSSmilePayPlugin {
 			[ $this, 'register_invoice_file_host' ]
 		);
 
-		// 後台子選單與設定儲存 — 僅當 admin class 已被 frontend agent 提交時掛 hook
-		// （避免 fatal：類別不存在時不可呼叫 ::register_menu / ::handle_save）
+		// 設定儲存與測試連線 — menu 由 provider manifest lifecycle 掛載。
+		// 類別不存在時不掛 handler，避免 fatal。
 		if ( class_exists( '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin' ) ) {
-			// 子選單：用 ys_ec_admin_payment_menus hook（v2.14.0+ 開放給第三方註冊），
-			// 第一個參數是金物流 parent slug（'ys-cart'），第二個是 cap。
-			// 雖然語意上 SmilePay 是「電子發票」，但 ys-cart 目前只開放這一個 hook 給 add-on
-			// 註冊到頂層選單系統。frontend agent 的 register_menu 簽名遵循該契約。
-			add_action(
-				'ys_ec_admin_payment_menus',
-				[ '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin', 'register_menu' ],
-				10,
-				2
-			);
-
-			// admin_post handler：設定表單 POST 儲存（REST-first 規範禁止 admin-ajax）
 			add_action(
 				'admin_post_ys_ec_save_smilepay_settings',
 				[ '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin', 'handle_save' ]
+			);
+			add_action(
+				'admin_post_ys_ec_test_smilepay_connection',
+				[ '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin', 'handle_test_connection' ]
 			);
 		}
 	}
@@ -101,6 +86,29 @@ final class YSSmilePayPlugin {
 	}
 
 	/**
+	 * @param array<int,array<string,mixed>> $manifests
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function register_manifest( array $manifests ): array {
+		$manifests[] = self::manifest();
+
+		return $manifests;
+	}
+
+	/**
+	 * @return array<string,mixed>
+	 */
+	public static function manifest(): array {
+		static $manifest = null;
+
+		if ( null === $manifest ) {
+			$manifest = require YS_SMILEPAY_DIR . 'manifest.php';
+		}
+
+		return $manifest;
+	}
+
+	/**
 	 * 註冊 SmilePay provider 到 ys-cart invoice registry
 	 *
 	 * 由 YSInvoiceRegistry::init() 在 boot 時觸發 apply_filters。
@@ -111,6 +119,10 @@ final class YSSmilePayPlugin {
 	 * @return array<string, mixed>
 	 */
 	public function register_provider(): void {
+		if ( ! $this->is_invoice_enabled() ) {
+			return;
+		}
+
 		// 用 ys-cart 原生 action 模式：在 callback 內直接呼叫 ::register()
 		// （參照 YSInvoiceRegistry.php:180-182 @example）
 		\YangSheep\Ecommerce\Invoice\YSInvoiceRegistry::register( new YSSmilePayInvoiceProvider() );
@@ -123,6 +135,10 @@ final class YSSmilePayPlugin {
 	 * @return array<int, string>
 	 */
 	public function register_invoice_file_host( array $hosts ): array {
+		if ( ! $this->is_invoice_enabled() ) {
+			return $hosts;
+		}
+
 		// 同 host、test/prod path 不同 → 只需要一個 host
 		if ( ! in_array( 'einvoice.smilepay.net', $hosts, true ) ) {
 			$hosts[] = 'einvoice.smilepay.net';
@@ -130,10 +146,22 @@ final class YSSmilePayPlugin {
 		return $hosts;
 	}
 
+	private function is_invoice_enabled(): bool {
+		if ( class_exists( '\YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState' ) ) {
+			return \YangSheep\Ecommerce\Core\Provider\YSProviderLifecycleState::is_method_enabled(
+				'invoice',
+				YSSmilePayInvoiceProvider::ID,
+				self::manifest()
+			);
+		}
+
+		return '1' === (string) get_option( YSSmilePayInvoiceProvider::OPTION_ENABLED, '0' );
+	}
+
 	/**
 	 * 取得外掛版本（給其他子系統參照）
 	 */
 	public function get_version(): string {
-		return defined( 'YS_SMILEPAY_VERSION' ) ? YS_SMILEPAY_VERSION : '1.0.0';
+		return defined( 'YS_SMILEPAY_VERSION' ) ? YS_SMILEPAY_VERSION : '1.0.1';
 	}
 }

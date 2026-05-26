@@ -13,6 +13,13 @@
 - v1.1：EPSON IP 列印（特殊版型 + 印表機 IP）
 - v1.1：註銷發票（types=Void）
 
+## [1.0.1] - 2026-05-26
+
+### Changed
+
+- Require YS CART 2.51.0+ provider lifecycle gating.
+- Register SmilePay invoice surfaces only through manifest lifecycle state.
+
 ## [1.0.0] - 2026-05-26
 
 ### Added
