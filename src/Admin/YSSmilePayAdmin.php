@@ -33,6 +33,7 @@ namespace YangSheep\SmilePayEInvoice\Admin;
 defined( 'ABSPATH' ) || exit;
 
 use YangSheep\Ecommerce\Admin\YSAdminApp;
+use YangSheep\Ecommerce\Utils\YSCrypto;
 use YangSheep\SmilePayEInvoice\Api\YSSmilePayApiClient;
 use YangSheep\SmilePayEInvoice\Providers\YSSmilePayInvoiceProvider;
 use YangSheep\SmilePayEInvoice\YSSmilePayPlugin;
@@ -134,7 +135,7 @@ final class YSSmilePayAdmin {
 
 		$sanitized = self::sanitize_settings_payload( $fields, $raw, $existing );
 
-		update_option( self::OPTION_SETTINGS, $sanitized, true );
+		update_option( self::OPTION_SETTINGS, self::prepare_settings_for_storage( $sanitized ), true );
 
 		// 獨立的啟用 toggle option
 		$enabled = ! empty( $raw[ self::OPTION_ENABLED ] ) ? '1' : '0';
@@ -193,8 +194,8 @@ final class YSSmilePayAdmin {
 
 					$response = $client->issue( $payload );
 
-					$status = isset( $response['Status'] ) ? (string) $response['Status'] : '';
-					$desc   = isset( $response['Desc'] ) ? (string) $response['Desc'] : '';
+					$status = $response->status();
+					$desc   = $response->desc();
 
 					if ( '1' === $status || '0' === $status ) {
 						// SmilePay 慣例：1 = 開立成功（B2C/B2B），0 = 成功（部分版本回傳）
@@ -316,7 +317,12 @@ final class YSSmilePayAdmin {
 			$defaults[ $field['key'] ] = $field['default'] ?? '';
 		}
 
-		return array_merge( $defaults, $stored );
+		$settings = array_merge( $defaults, $stored );
+		if ( isset( $settings['verify_key'] ) ) {
+			$settings['verify_key'] = self::decrypt_verify_key( (string) $settings['verify_key'] );
+		}
+
+		return $settings;
 	}
 
 	/**
@@ -472,6 +478,56 @@ final class YSSmilePayAdmin {
 	}
 
 	/**
+	 * Encrypt secret settings before they are persisted.
+	 *
+	 * Existing plaintext values stay supported when YSCrypto is unavailable, but
+	 * normal YS CART installs should store Verify_key encrypted at rest.
+	 *
+	 * @param array<string, mixed> $settings
+	 * @return array<string, mixed>
+	 */
+	private static function prepare_settings_for_storage( array $settings ): array {
+		if ( ! isset( $settings['verify_key'] ) ) {
+			return $settings;
+		}
+
+		$settings['verify_key'] = self::encrypt_verify_key( (string) $settings['verify_key'] );
+		return $settings;
+	}
+
+	private static function encrypt_verify_key( string $verify_key ): string {
+		$verify_key = trim( $verify_key );
+		if ( '' === $verify_key || ! class_exists( YSCrypto::class ) ) {
+			return $verify_key;
+		}
+
+		try {
+			if ( '' !== YSCrypto::decrypt_from_storage( $verify_key ) ) {
+				return $verify_key;
+			}
+
+			$encrypted = YSCrypto::encrypt_for_storage( $verify_key );
+			return '' !== $encrypted ? $encrypted : $verify_key;
+		} catch ( \Throwable $e ) {
+			return $verify_key;
+		}
+	}
+
+	private static function decrypt_verify_key( string $verify_key ): string {
+		$verify_key = trim( $verify_key );
+		if ( '' === $verify_key || ! class_exists( YSCrypto::class ) ) {
+			return $verify_key;
+		}
+
+		try {
+			$decrypted = YSCrypto::decrypt_from_storage( $verify_key );
+			return '' !== $decrypted ? $decrypted : $verify_key;
+		} catch ( \Throwable $e ) {
+			return $verify_key;
+		}
+	}
+
+	/**
 	 * 解析 PRG redirect 帶回的 notice（顯示「已儲存」/「測試成功」/「測試失敗」）。
 	 *
 	 * @return array{type: string, message: string}|null
@@ -525,7 +581,12 @@ final class YSSmilePayAdmin {
 		$dt          = is_string( $now ) ? strtotime( $now ) : time();
 		$invoice_dt  = false !== $dt ? $dt : time();
 
-		$order_number = 'YSCART-TEST-' . wp_generate_password( 8, false, false );
+		$order_number        = 'YSCART-TEST-' . wp_generate_password( 8, false, false );
+		$clean_pos_system_id = preg_replace( '/[^A-Za-z0-9]/', '', $pos_system_id );
+		$clean_pos_system_id = is_string( $clean_pos_system_id ) ? substr( $clean_pos_system_id, 0, 20 ) : '';
+		if ( '' === $clean_pos_system_id ) {
+			$clean_pos_system_id = 'YSCART';
+		}
 
 		return [
 			'Grvc'         => $grvc,
@@ -542,7 +603,7 @@ final class YSSmilePayAdmin {
 			'AllAmount'    => '1',
 			'Email'        => (string) get_option( 'admin_email', '' ),
 			'orderid'      => $order_number,
-			'PosBarCode'   => '' !== $pos_system_id ? $pos_system_id : 'YS-CART',
+			'PosSystemID'  => $clean_pos_system_id,
 			// Flag 給 API client：這是測試連線，可選擇 dry-run / 真打皆可（由 backend agent 決定）
 			'_test_only'   => true,
 		];

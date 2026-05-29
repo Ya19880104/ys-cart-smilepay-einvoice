@@ -13,6 +13,14 @@
 - v1.1：EPSON IP 列印（特殊版型 + 印表機 IP）
 - v1.1：註銷發票（types=Void）
 
+## [1.0.2] - 2026-05-30
+
+### Changed
+
+- Align SmilePay invoice provider settings UI with the YS CART admin visual contract.
+- Harden invoice provider lifecycle behavior and provider-gated admin registration.
+- Add review regression coverage for settings layout and provider registration.
+
 ## [1.0.1] - 2026-05-26
 
 ### Changed

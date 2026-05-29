@@ -122,7 +122,7 @@ if ( $provider_loaded && $registry_loaded ) {
 	v100_pr_check(
 		'Invoice registration and file host are lifecycle-gated',
 		false !== strpos( $bootstrap, 'is_invoice_enabled()' )
-			&& false !== strpos( $bootstrap, "is_method_enabled(\n\t\t\t\t'invoice'" )
+			&& 1 === preg_match( "/is_method_enabled\s*\(\s*['\"]invoice['\"]/s", $bootstrap )
 			&& false !== strpos( $bootstrap, 'YSSmilePayInvoiceProvider::ID' )
 	);
 

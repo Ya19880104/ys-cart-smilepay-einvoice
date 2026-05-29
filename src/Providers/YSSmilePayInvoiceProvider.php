@@ -40,6 +40,8 @@ namespace YangSheep\SmilePayEInvoice\Providers;
 defined( 'ABSPATH' ) || exit;
 
 use YangSheep\Ecommerce\Invoice\YSInvoiceProviderInterface;
+use YangSheep\Ecommerce\Models\YSInvoice;
+use YangSheep\Ecommerce\Utils\YSCrypto;
 use YangSheep\SmilePayEInvoice\Api\YSSmilePayApiClient;
 use YangSheep\SmilePayEInvoice\Api\YSSmilePayApiResponse;
 use YangSheep\SmilePayEInvoice\Support\YSSmilePayErrorCodes;
@@ -456,12 +458,34 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 			$defaults[ $field['key'] ] = $field['default'] ?? '';
 		}
 
-		return array_merge( $defaults, $stored );
+		$settings = array_merge( $defaults, $stored );
+		if ( isset( $settings['verify_key'] ) ) {
+			$settings['verify_key'] = $this->decrypt_verify_key( (string) $settings['verify_key'] );
+		}
+
+		return $settings;
 	}
 
 	// ──────────────────────────────────────────────────────────────────────
 	// internals
 	// ──────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Decrypt Verify_key from storage while keeping plaintext fallback for old installs.
+	 */
+	private function decrypt_verify_key( string $verify_key ): string {
+		$verify_key = trim( $verify_key );
+		if ( '' === $verify_key || ! class_exists( YSCrypto::class ) ) {
+			return $verify_key;
+		}
+
+		try {
+			$decrypted = YSCrypto::decrypt_from_storage( $verify_key );
+			return '' !== $decrypted ? $decrypted : $verify_key;
+		} catch ( \Throwable $e ) {
+			return $verify_key;
+		}
+	}
 
 	/**
 	 * 建立 API client；設定不齊全則回 null
@@ -527,7 +551,7 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 			'AllAmount'     => (string) $total_amount,
 			// ── 識別 / 追溯 ──
 			'orderid'       => $this->truncate( (string) ( $invoice_data['order_number'] ?? $invoice_data['order_id'] ?? '' ), 30 ),
-			'data_id'       => $this->truncate( sprintf( 'YSCART-%d', (int) ( $invoice_data['order_id'] ?? 0 ) ), 50 ),
+			'data_id'       => $this->build_data_id( $invoice_data ),
 			// SmilePay PosSystemID 規範：20 字元（英文/數字）。任何非英數字字元（如 - _ . 中文）會觸發 -10073。
 			'PosSystemID'   => $this->truncate( preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $settings['pos_system_id'] ?? 'YSCART' ) ), 20 ),
 			// ── 買受人聯絡（共用） ──
@@ -596,6 +620,47 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 		}
 
 		return $payload;
+	}
+
+	/**
+	 * Build a SmilePay data_id that remains unique when an order is reissued.
+	 *
+	 * SmilePay keeps data_id uniqueness even after an invoice is voided. The
+	 * core manager inserts the pending invoice row before calling the provider,
+	 * so the latest pending invoice ID is a stable per-attempt suffix.
+	 *
+	 * @param array<string, mixed> $invoice_data
+	 */
+	private function build_data_id( array $invoice_data ): string {
+		$order_id = (int) ( $invoice_data['order_id'] ?? 0 );
+		if ( $order_id <= 0 ) {
+			return $this->truncate( 'YSCART-' . wp_generate_uuid4(), 50 );
+		}
+
+		$invoice_id = $this->find_current_pending_invoice_id( $order_id );
+		if ( $invoice_id > 0 ) {
+			return $this->truncate( sprintf( 'YSCART-%d-%d', $order_id, $invoice_id ), 50 );
+		}
+
+		return $this->truncate( sprintf( 'YSCART-%d', $order_id ), 50 );
+	}
+
+	private function find_current_pending_invoice_id( int $order_id ): int {
+		if ( $order_id <= 0 || ! class_exists( YSInvoice::class ) ) {
+			return 0;
+		}
+
+		global $wpdb;
+		$table = YSInvoice::table();
+		$id    = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE order_id = %d AND status = %s ORDER BY id DESC LIMIT 1",
+				$order_id,
+				'pending'
+			)
+		);
+
+		return $id ? (int) $id : 0;
 	}
 
 	/**

@@ -59,6 +59,12 @@ final class YSSmilePayPlugin {
 			'ys_ec_invoice_file_allowed_hosts',
 			[ $this, 'register_invoice_file_host' ]
 		);
+		add_filter(
+			'ys_ec_invoice_provider_settings_url',
+			[ $this, 'filter_invoice_provider_settings_url' ],
+			10,
+			3
+		);
 
 		// 設定儲存與測試連線 — menu 由 provider manifest lifecycle 掛載。
 		// 類別不存在時不掛 handler，避免 fatal。
@@ -72,6 +78,8 @@ final class YSSmilePayPlugin {
 				[ '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin', 'handle_test_connection' ]
 			);
 		}
+
+		add_action( 'admin_footer', [ $this, 'render_admin_order_invoice_print_links' ] );
 	}
 
 	/**
@@ -144,6 +152,145 @@ final class YSSmilePayPlugin {
 			$hosts[] = 'einvoice.smilepay.net';
 		}
 		return $hosts;
+	}
+
+	/**
+	 * Point provider-card settings links to the SmilePay API credential page.
+	 */
+	public function filter_invoice_provider_settings_url( string $url, string $provider_id, object $provider ): string {
+		unset( $provider );
+
+		if ( YSSmilePayInvoiceProvider::ID !== $provider_id ) {
+			return $url;
+		}
+
+		return admin_url( 'admin.php?page=ys-provider-smilepay' );
+	}
+
+	/**
+	 * Add SmilePay's own invoice print/PDF link to the YS CART order invoice rows.
+	 *
+	 * This stays inside the provider plugin and uses the core invoice file proxy,
+	 * so YS CART core does not need an order-detail template change.
+	 */
+	public function render_admin_order_invoice_print_links(): void {
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) || ! $this->is_invoice_enabled() ) {
+			return;
+		}
+
+		$page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( (string) $_GET['action'] ) ) : '';
+		if ( 'ys-ec-orders' !== $page || 'view' !== $action ) {
+			return;
+		}
+
+		$rest_root  = esc_url_raw( rest_url( 'ys-ecommerce-headless/v1' ) );
+		$rest_nonce = wp_create_nonce( 'wp_rest' );
+		$site_root  = esc_url_raw( home_url( '/' ) );
+		$order_id   = isset( $_GET['id'] ) ? absint( wp_unslash( (string) $_GET['id'] ) ) : 0;
+		$order_key  = '';
+		if ( $order_id > 0 && class_exists( '\YangSheep\Ecommerce\Models\YSOrder' ) ) {
+			$order = \YangSheep\Ecommerce\Models\YSOrder::find( $order_id );
+			if ( $order ) {
+				$order_key = \YangSheep\Ecommerce\Models\YSOrder::generate_order_key(
+					$order_id,
+					(string) ( $order->order_number ?? '' )
+				);
+			}
+		}
+		?>
+		<script>
+		(function () {
+			'use strict';
+
+			var REST_ROOT = <?php echo wp_json_encode( $rest_root ); ?>;
+			var REST_NONCE = <?php echo wp_json_encode( $rest_nonce ); ?>;
+			var SITE_ROOT = <?php echo wp_json_encode( $site_root ); ?>;
+			var ORDER_KEY = <?php echo wp_json_encode( $order_key ); ?>;
+
+			function invoiceFileUrl(invoiceId) {
+				var url = new URL(SITE_ROOT, window.location.origin);
+				url.searchParams.set('rest_route', '/ys-ecommerce-headless/v1/account/invoices/' + invoiceId + '/file');
+				if (ORDER_KEY) {
+					url.searchParams.set('token', ORDER_KEY);
+				}
+				return url.toString();
+			}
+
+			function addPrintLink(row, invoiceId) {
+				if (row.querySelector('.ys-smilepay-admin-invoice-print-link')) {
+					return;
+				}
+
+				var refreshButton = row.querySelector('.ys-ec-invoice-refresh-btn[data-invoice-id]');
+				if (!refreshButton) {
+					return;
+				}
+
+				var actionsCell = refreshButton.closest('td') || refreshButton.parentNode;
+				var link = document.createElement('a');
+				link.className = 'button button-small ys-smilepay-admin-invoice-print-link';
+				link.href = invoiceFileUrl(invoiceId);
+				link.target = '_blank';
+				link.rel = 'noopener noreferrer';
+				link.textContent = 'SmilePay 列印 / PDF';
+
+				actionsCell.insertBefore(link, actionsCell.firstChild);
+				actionsCell.insertBefore(document.createTextNode(' '), link.nextSibling);
+			}
+
+			function hydrateInvoiceRow(row) {
+				if (row.dataset.smilepayPrintChecked === '1') {
+					return;
+				}
+				row.dataset.smilepayPrintChecked = '1';
+
+				var refreshButton = row.querySelector('.ys-ec-invoice-refresh-btn[data-invoice-id]');
+				if (!refreshButton) {
+					return;
+				}
+
+				var invoiceId = refreshButton.getAttribute('data-invoice-id');
+				if (!invoiceId) {
+					return;
+				}
+
+				fetch(REST_ROOT + '/admin/invoices/' + encodeURIComponent(invoiceId), {
+					credentials: 'same-origin',
+					headers: {
+						'X-WP-Nonce': REST_NONCE
+					}
+				})
+					.then(function (response) {
+						if (!response.ok) {
+							throw new Error('HTTP ' + response.status);
+						}
+						return response.json();
+					})
+					.then(function (json) {
+						var data = json && json.data ? json.data : json;
+						if (!data || data.provider !== 'smilepay' || data.status !== 'issued' || !data.invoice_number) {
+							return;
+						}
+						addPrintLink(row, invoiceId);
+					})
+					.catch(function () {
+						// Keep the core invoice controls untouched if provider lookup fails.
+					});
+			}
+
+			function hydrate() {
+				document.querySelectorAll('.ys-ec-invoice-admin-table tbody tr').forEach(hydrateInvoiceRow);
+			}
+
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', hydrate);
+			} else {
+				hydrate();
+			}
+		})();
+		</script>
+		<?php
 	}
 
 	private function is_invoice_enabled(): bool {

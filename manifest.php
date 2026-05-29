@@ -20,6 +20,7 @@ return [
 	'documentation_url'  => 'https://www.smilepay.net/',
 	'legacy_setting_key' => 'ys_ec_smilepay_enabled',
 	'domains'            => [ 'invoice' ],
+	'admin_group'        => 'invoice',
 	'capabilities'       => [
 		'invoice' => [
 			'providers' => [
@@ -44,7 +45,7 @@ return [
 		'einvoice.smilepay.net',
 	],
 	'health_check'       => [
-		'callback'  => null,
+		'callback'  => '__return_true',
 		'cache_ttl' => 3600,
 	],
 ];
