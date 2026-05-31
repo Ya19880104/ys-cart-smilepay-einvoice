@@ -1,5 +1,6 @@
 # 開發物件（本地保留，不入 GitHub 公開庫）
 outputs/
+artifacts/
 .dev/
 .env
 .env.example
