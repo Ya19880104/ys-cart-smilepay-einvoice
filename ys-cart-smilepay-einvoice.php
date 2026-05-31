@@ -3,7 +3,7 @@
  * Plugin Name: YS CART 速買配電子發票
  * Plugin URI: https://github.com/Ya19880104/ys-cart-smilepay-einvoice
  * Description: 速買配（SmilePay / 訊航科技）電子發票整合，作為 YS CART 的 invoice provider。提供 B2C / B2B 發票開立、作廢、查詢、載具、捐贈愛心碼與發票列印。
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: YANGSHEEP DESIGN
  * Author URI: https://yangsheep.com.tw
  * Text Domain: ys-cart-smilepay-einvoice
@@ -28,7 +28,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // 外掛常數
-define( 'YS_SMILEPAY_VERSION', '1.0.2' );
+define( 'YS_SMILEPAY_VERSION', '1.0.3' );
 define( 'YS_SMILEPAY_FILE', __FILE__ );
 define( 'YS_SMILEPAY_DIR', plugin_dir_path( __FILE__ ) );
 define( 'YS_SMILEPAY_URL', plugin_dir_url( __FILE__ ) );
@@ -41,8 +41,8 @@ require_once YS_SMILEPAY_DIR . 'src/autoload.php';
 /**
  * Bootstrap 入口
  *
- * 在 plugins_loaded priority 0 啟動，先於 ys-cart 主外掛 priority 10 初始化
- * YSInvoiceRegistry，確保第三方發票 provider 註冊 hook 已存在。
+ * 在 plugins_loaded priority 0 先掛上 manifest 與 invoice registry hooks，
+ * 再交由 YS CART core（priority 10）初始化 registry。
  *
  * 若 ys-cart 未啟用或版本低於 YS_SMILEPAY_MIN_YS_CART_VERSION，會顯示 admin notice
  * 並中止啟動，避免 fatal error。
