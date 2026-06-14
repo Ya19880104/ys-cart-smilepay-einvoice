@@ -13,6 +13,34 @@
 - v1.1：EPSON IP 列印（特殊版型 + 印表機 IP）
 - v1.1：註銷發票（types=Void）
 
+## [1.0.4] - 2026-06-15
+
+### Security
+
+- Customer invoice files are now served through the core shared server-side
+  proxy (`stream_customer_invoice_file`) instead of redirecting the browser to
+  the SmilePay print URL, which carries the secret `Verify_key`.
+  `get_customer_invoice_url()` now fails closed (returns `success:false`) so the
+  secret can no longer leak via query string or Referer. The proxy enforces a
+  host allowlist (`einvoice.smilepay.net`), blocks redirects, caps the response
+  at 5 MB, and allowlists PDF/HTML/PNG/JPEG content types.
+
+### Added
+
+- Register with the YS Plugin Hub Client (`YSPluginHubClient::register`) to join
+  the shared YS CART plugin update lifecycle, consistent with the other providers.
+- Headless SDK (`sdk/`), skill doc (`skills/`), release build script
+  (`bin/build-release.php`), and package-contract regression (v104).
+- Regression: v105 (invoice file proxy contract), v106 (Hub client registration contract).
+
+## [1.0.3] - 2026-05-31
+
+### Fixed
+
+- Group the SmilePay provider before invoice registry initialization to fix
+  provider load ordering.
+- Add regression: v102 (admin group contract), v103 (bootstrap priority contract).
+
 ## [1.0.2] - 2026-05-30
 
 ### Changed

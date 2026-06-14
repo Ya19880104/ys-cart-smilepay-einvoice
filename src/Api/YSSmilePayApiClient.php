@@ -49,6 +49,11 @@ final class YSSmilePayApiClient {
 	private const HTTP_TIMEOUT = 30;
 
 	/**
+	 * Max bytes fetched through the invoice print proxy.
+	 */
+	private const PRINT_FILE_LIMIT_BYTES = 5242880;
+
+	/**
 	 * SmilePay 電子發票帳號（Grvc）
 	 */
 	private string $grvc;
@@ -172,6 +177,108 @@ final class YSSmilePayApiClient {
 			],
 			$base
 		);
+	}
+
+	/**
+	 * Fetch a SmilePay print file server-side so browser URLs never expose Verify_key.
+	 *
+	 * @param string $invoice_number ?潛巨?Ⅳ嚗?0 蝣潘?
+	 * @param string $invoice_date   ?潛巨?交?嚗YYY/MM/DD嚗?
+	 * @param string $random_code    B2C ?冽?蝣?/ B2B 蝯梁楊
+	 * @return array{success:bool, body:string, content_type:string, filename:string, raw:array<string,mixed>, error:?string}
+	 */
+	public function fetch_print_file(
+		string $invoice_number,
+		string $invoice_date,
+		string $random_code
+	): array {
+		$url  = $this->build_print_url( $invoice_number, $invoice_date, $random_code );
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( 'einvoice.smilepay.net' !== $host ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [ 'host' => $host ],
+				'error'        => 'SmilePay print host is not allowed.',
+			];
+		}
+
+		$response = wp_remote_get(
+			$url,
+			[
+				'timeout'             => self::HTTP_TIMEOUT,
+				'sslverify'           => true,
+				'redirection'         => 0,
+				'limit_response_size' => self::PRINT_FILE_LIMIT_BYTES,
+				'headers'             => [
+					'Accept' => 'application/pdf, text/html;q=0.9, image/png;q=0.8, image/jpeg;q=0.8',
+				],
+				'user-agent'          => 'YS CART SmilePay Provider/' . ( defined( 'YS_SMILEPAY_VERSION' ) ? YS_SMILEPAY_VERSION : '1.0.1' ),
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [],
+				'error'        => 'network: ' . $response->get_error_message(),
+			];
+		}
+
+		$http_code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $http_code ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [ 'http_code' => $http_code ],
+				'error'        => sprintf( 'SmilePay print HTTP %d.', $http_code ),
+			];
+		}
+
+		$body         = (string) wp_remote_retrieve_body( $response );
+		$content_type = strtolower( trim( explode( ';', (string) wp_remote_retrieve_header( $response, 'content-type' ) )[0] ?? '' ) );
+		$allowed      = [ 'application/pdf', 'text/html', 'image/png', 'image/jpeg' ];
+		if ( '' === $body || ! in_array( $content_type, $allowed, true ) ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [
+					'http_code'    => $http_code,
+					'content_type' => $content_type,
+					'bytes'        => strlen( $body ),
+				],
+				'error'        => 'SmilePay print content is empty or not allowed.',
+			];
+		}
+
+		$extension = [
+			'application/pdf' => 'pdf',
+			'text/html'       => 'html',
+			'image/png'       => 'png',
+			'image/jpeg'      => 'jpg',
+		][ $content_type ];
+
+		return [
+			'success'      => true,
+			'body'         => $body,
+			'content_type' => $content_type,
+			'filename'     => sprintf( 'smilepay-invoice-%s.%s', sanitize_file_name( $invoice_number ), $extension ),
+			'raw'          => [
+				'http_code'    => $http_code,
+				'content_type' => $content_type,
+				'bytes'        => strlen( $body ),
+			],
+			'error'        => null,
+		];
 	}
 
 	/**

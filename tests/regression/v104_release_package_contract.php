@@ -38,6 +38,8 @@ $mustHave = [
     'ys-cart-smilepay-einvoice/skills/ys-cart-smilepay-einvoice-headless.md',
     'ys-cart-smilepay-einvoice/templates/admin/settings.php',
     'ys-cart-smilepay-einvoice/languages/ys-cart-smilepay-einvoice-zh_TW.po',
+    'ys-cart-smilepay-einvoice/vendor/autoload.php',
+    'ys-cart-smilepay-einvoice/vendor/yangsheep/ys-plugin-hub-client/ys-plugin-hub-client.php',
 ];
 
 foreach ($mustHave as $entry) {

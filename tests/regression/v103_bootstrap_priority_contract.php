@@ -28,9 +28,11 @@ function v103_boot_check( string $label, bool $ok ): void {
 }
 
 v103_boot_check(
-	'Plugin version is bumped for early bootstrap fix',
-	str_contains( $main, 'Version: 1.0.3' )
-		&& str_contains( $main, "define( 'YS_SMILEPAY_VERSION', '1.0.3' );" )
+	'Plugin version is bumped for early bootstrap fix (>= 1.0.3)',
+	(bool) preg_match( '/Version:\s*([0-9.]+)/', $main, $hm )
+		&& version_compare( $hm[1], '1.0.3', '>=' )
+		&& (bool) preg_match( "/define\(\s*'YS_SMILEPAY_VERSION',\s*'([0-9.]+)'\s*\)/", $main, $cm )
+		&& version_compare( $cm[1], '1.0.3', '>=' )
 );
 
 v103_boot_check(

@@ -3,7 +3,7 @@
  * Plugin Name: YS CART 速買配電子發票
  * Plugin URI: https://github.com/Ya19880104/ys-cart-smilepay-einvoice
  * Description: 速買配（SmilePay / 訊航科技）電子發票整合，作為 YS CART 的 invoice provider。提供 B2C / B2B 發票開立、作廢、查詢、載具、捐贈愛心碼與發票列印。
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: YANGSHEEP DESIGN
  * Author URI: https://yangsheep.com.tw
  * Text Domain: ys-cart-smilepay-einvoice
@@ -28,7 +28,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // 外掛常數
-define( 'YS_SMILEPAY_VERSION', '1.0.3' );
+define( 'YS_SMILEPAY_VERSION', '1.0.4' );
 define( 'YS_SMILEPAY_FILE', __FILE__ );
 define( 'YS_SMILEPAY_DIR', plugin_dir_path( __FILE__ ) );
 define( 'YS_SMILEPAY_URL', plugin_dir_url( __FILE__ ) );
@@ -36,6 +36,11 @@ define( 'YS_SMILEPAY_BASENAME', plugin_basename( __FILE__ ) );
 define( 'YS_SMILEPAY_MIN_YS_CART_VERSION', '2.51.0' );
 
 // PSR-4 手寫 autoloader（不依賴 composer）
+$ys_smilepay_vendor = YS_SMILEPAY_DIR . 'vendor/autoload.php';
+if ( is_readable( $ys_smilepay_vendor ) ) {
+	require_once $ys_smilepay_vendor;
+}
+
 require_once YS_SMILEPAY_DIR . 'src/autoload.php';
 
 /**
@@ -81,6 +86,15 @@ add_action(
 		}
 
 		// 啟動 Singleton bootstrap
+		if ( class_exists( \YangSheep\PluginHubClient\YSPluginHubClient::class ) ) {
+			\YangSheep\PluginHubClient\YSPluginHubClient::register( [
+				'slug'        => 'ys-cart-smilepay-einvoice',
+				'version'     => YS_SMILEPAY_VERSION,
+				'plugin_file' => __FILE__,
+				'name'        => 'YS CART SmilePay E-Invoice',
+			] );
+		}
+
 		\YangSheep\SmilePayEInvoice\YSSmilePayPlugin::instance();
 	},
 	0

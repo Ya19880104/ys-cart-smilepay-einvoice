@@ -432,13 +432,13 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 		// normalize 日期格式：YYYY-MM-DD → YYYY/MM/DD（取前 10 字元，去 timezone）
 		$normalized_date = str_replace( '-', '/', substr( $invoice_date, 0, 10 ) );
 
-		$url = $client->build_print_url( $invoice_number, $normalized_date, $random_code );
+		$url = '';
 
 		return [
-			'success'  => true,
+			'success'  => false,
 			'file_url' => $url,
 			'raw'      => null, // 非 API call，無 raw payload
-			'error'    => null,
+			'error'    => 'SmilePay invoice files are served through the secure server-side proxy.',
 		];
 	}
 
@@ -464,6 +464,94 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 		}
 
 		return $settings;
+	}
+
+	/**
+	 * Fetch the customer invoice print/PDF file server-side.
+	 *
+	 * @param string               $invoice_number Invoice number.
+	 * @param array<string, mixed> $context        Invoice context.
+	 * @return array{success:bool, body:string, content_type:string, filename:string, raw:array<string,mixed>, error:?string}
+	 */
+	public function stream_customer_invoice_file( string $invoice_number, array $context = [] ): array {
+		$resolved = $this->resolve_print_context( $invoice_number, $context );
+		if ( empty( $resolved['success'] ) ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [],
+				'error'        => (string) ( $resolved['error'] ?? 'SmilePay print context is incomplete.' ),
+			];
+		}
+
+		$client = $this->build_client();
+		if ( null === $client ) {
+			return [
+				'success'      => false,
+				'body'         => '',
+				'content_type' => '',
+				'filename'     => '',
+				'raw'          => [],
+				'error'        => 'SmilePay Grvc / Verify_key is not configured.',
+			];
+		}
+
+		return $client->fetch_print_file(
+			(string) $resolved['invoice_number'],
+			(string) $resolved['invoice_date'],
+			(string) $resolved['random_code']
+		);
+	}
+
+	/**
+	 * Resolve invoice print context from REST context or the invoice table.
+	 *
+	 * @param string               $invoice_number Invoice number.
+	 * @param array<string, mixed> $context        Invoice context.
+	 * @return array{success:bool, invoice_number:string, invoice_date:string, random_code:string, error:?string}
+	 */
+	private function resolve_print_context( string $invoice_number, array $context = [] ): array {
+		$invoice_number = trim( $invoice_number );
+		if ( '' === $invoice_number ) {
+			return [
+				'success'        => false,
+				'invoice_number' => '',
+				'invoice_date'   => '',
+				'random_code'    => '',
+				'error'          => 'SmilePay print requires invoice_number.',
+			];
+		}
+
+		$invoice_date = trim( (string) ( $context['invoice_date'] ?? '' ) );
+		$random_code  = trim( (string) ( $context['random_code'] ?? '' ) );
+
+		if ( '' === $invoice_date ) {
+			$invoice_date = $this->fetch_invoice_date_from_table( $invoice_number );
+		}
+
+		if ( '' === $random_code ) {
+			$random_code = $this->fetch_random_code_from_table( $invoice_number );
+		}
+
+		if ( '' === $invoice_date || '' === $random_code ) {
+			return [
+				'success'        => false,
+				'invoice_number' => $invoice_number,
+				'invoice_date'   => '',
+				'random_code'    => '',
+				'error'          => 'SmilePay print requires invoice_date and random_code.',
+			];
+		}
+
+		return [
+			'success'        => true,
+			'invoice_number' => $invoice_number,
+			'invoice_date'   => str_replace( '-', '/', substr( $invoice_date, 0, 10 ) ),
+			'random_code'    => $random_code,
+			'error'          => null,
+		];
 	}
 
 	// ──────────────────────────────────────────────────────────────────────
