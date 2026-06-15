@@ -13,6 +13,30 @@
 - v1.1：EPSON IP 列印（特殊版型 + 印表機 IP）
 - v1.1：註銷發票（types=Void）
 
+## [1.0.6] - 2026-06-15
+
+### Fixed
+
+- Saving the settings page without re-entering the Verify_key no longer wipes an
+  undecryptable (migration / security-key change) Verify_key. Previously the blank
+  password field retained the *decrypted* value — which was empty after the v1.0.5
+  fail-closed change — and overwrote the stored ciphertext, so `verify_key_needs_reentry()`
+  stopped firing and the guidance notice silently vanished, leaving the provider unusable
+  with no hint. `preserve_unusable_verify_key()` now keeps the raw envelope on a blank save,
+  and `encrypt_verify_key()` never double-encrypts an existing envelope.
+- The admin's own `decrypt_verify_key()` (settings-page fallback path) now matches the
+  provider's fail-closed behavior.
+
+### Changed
+
+- The admin guidance notice now fires whenever SmilePay is enabled but the effective
+  Verify_key is empty — covering both the undecryptable case (migration) and a plainly
+  missing key — instead of only the undecryptable case, with a message tailored to each.
+
+### Added
+
+- Regression v108 (blank-save preservation + broadened guidance contract).
+
 ## [1.0.5] - 2026-06-15
 
 ### Security

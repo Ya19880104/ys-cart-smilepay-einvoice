@@ -97,10 +97,14 @@ final class YSSmilePayPlugin {
 	}
 
 	/**
-	 * 後台提示：驗證碼無法解密時，明確引導使用者重新輸入。
+	 * 後台提示：smilepay 已啟用但 verify_key 無法使用時，明確引導輸入 / 重新輸入。
 	 *
-	 * 觸發：smilepay 已啟用、且 verify_key 為加密信封卻以本站金鑰解不開
-	 * （網站搬遷 / 安全金鑰變動）。屬營收影響（無法開立發票），用 error 級提示。
+	 * 兩種情形（皆營收影響、無法開立發票，用 error 級）：
+	 *   - 解不開（搬站 / SECURE_AUTH_KEY 等安全金鑰變動）→ 提示「重新輸入」。
+	 *   - 缺失（未設定，或前述狀態被空白儲存清掉 = v1.0.6 修補的缺口）→ 提示「輸入」。
+	 *
+	 * 以「解密後 verify_key 是否為空」為總判準，確保即使 raw blob 被清掉，
+	 * 只要 provider 啟用但無可用驗證碼，提示就持續顯示，不會靜默消失。
 	 */
 	public function maybe_render_verify_key_notice(): void {
 		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
@@ -117,18 +121,38 @@ final class YSSmilePayPlugin {
 		}
 
 		$provider = new $provider_class();
-		if ( ! method_exists( $provider, 'verify_key_needs_reentry' ) || ! $provider->verify_key_needs_reentry() ) {
+
+		$needs_reentry = method_exists( $provider, 'verify_key_needs_reentry' ) && $provider->verify_key_needs_reentry();
+
+		$effective_vkey = '';
+		if ( method_exists( $provider, 'get_settings' ) ) {
+			$settings       = $provider->get_settings();
+			$effective_vkey = is_array( $settings ) ? trim( (string) ( $settings['verify_key'] ?? '' ) ) : '';
+		}
+
+		// verify_key 可用（非空）→ 不提示。
+		if ( '' !== $effective_vkey ) {
 			return;
 		}
 
 		$settings_url = admin_url( 'admin.php?page=' . \YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin::MENU_SLUG );
 
+		if ( $needs_reentry ) {
+			$title = __( '速買配電子發票：驗證碼無法解密，目前無法開立發票。', 'ys-cart-smilepay-einvoice' );
+			$body  = __( '常見原因為網站搬遷或 WordPress 安全金鑰（SECURE_AUTH_KEY 等）變動，使先前加密儲存的驗證碼無法以目前金鑰還原。請至設定頁重新輸入「速買配驗證碼（Verify_key）」並儲存即可恢復；其餘設定不受影響。', 'ys-cart-smilepay-einvoice' );
+			$cta   = __( '前往重新輸入驗證碼 →', 'ys-cart-smilepay-einvoice' );
+		} else {
+			$title = __( '速買配電子發票：尚未設定驗證碼，目前無法開立發票。', 'ys-cart-smilepay-einvoice' );
+			$body  = __( '速買配電子發票已啟用，但「速買配驗證碼（Verify_key）」為空。請至設定頁輸入由速買配提供的驗證碼並儲存即可開始開立發票。', 'ys-cart-smilepay-einvoice' );
+			$cta   = __( '前往輸入驗證碼 →', 'ys-cart-smilepay-einvoice' );
+		}
+
 		printf(
 			'<div class="notice notice-error"><p><strong>%s</strong><br>%s</p><p><a class="button button-primary" href="%s">%s</a></p></div>',
-			esc_html__( '速買配電子發票：驗證碼無法解密，目前無法開立發票。', 'ys-cart-smilepay-einvoice' ),
-			esc_html__( '常見原因為網站搬遷或 WordPress 安全金鑰（SECURE_AUTH_KEY 等）變動，使先前加密儲存的驗證碼無法以目前金鑰還原。請至設定頁重新輸入「速買配驗證碼（Verify_key）」並儲存即可恢復；其餘設定不受影響。', 'ys-cart-smilepay-einvoice' ),
+			esc_html( $title ),
+			esc_html( $body ),
 			esc_url( $settings_url ),
-			esc_html__( '前往重新輸入驗證碼 →', 'ys-cart-smilepay-einvoice' )
+			esc_html( $cta )
 		);
 	}
 

@@ -134,6 +134,7 @@ final class YSSmilePayAdmin {
 		// phpcs:enable
 
 		$sanitized = self::sanitize_settings_payload( $fields, $raw, $existing );
+		$sanitized = self::preserve_unusable_verify_key( $sanitized, $raw );
 
 		update_option( self::OPTION_SETTINGS, self::prepare_settings_for_storage( $sanitized ), true );
 
@@ -501,11 +502,12 @@ final class YSSmilePayAdmin {
 			return $verify_key;
 		}
 
-		try {
-			if ( '' !== YSCrypto::decrypt_from_storage( $verify_key ) ) {
-				return $verify_key;
-			}
+		// 已是加密信封（含因搬站 / 安全金鑰變動而解不開者）→ 原樣保留，不重複加密。
+		if ( self::looks_encrypted( $verify_key ) ) {
+			return $verify_key;
+		}
 
+		try {
 			$encrypted = YSCrypto::encrypt_for_storage( $verify_key );
 			return '' !== $encrypted ? $encrypted : $verify_key;
 		} catch ( \Throwable $e ) {
@@ -513,18 +515,63 @@ final class YSSmilePayAdmin {
 		}
 	}
 
+	/**
+	 * 解密 Verify_key（與 provider 一致的 fail-closed 行為）。
+	 * 明文 passthrough；加密信封解不開 → 回 ''（不外送無效密文）。
+	 */
 	private static function decrypt_verify_key( string $verify_key ): string {
 		$verify_key = trim( $verify_key );
 		if ( '' === $verify_key || ! class_exists( YSCrypto::class ) ) {
 			return $verify_key;
 		}
 
-		try {
-			$decrypted = YSCrypto::decrypt_from_storage( $verify_key );
-			return '' !== $decrypted ? $decrypted : $verify_key;
-		} catch ( \Throwable $e ) {
+		if ( ! self::looks_encrypted( $verify_key ) ) {
 			return $verify_key;
 		}
+
+		try {
+			return YSCrypto::decrypt_from_storage( $verify_key );
+		} catch ( \Throwable $e ) {
+			return '';
+		}
+	}
+
+	/**
+	 * verify_key 欄位留空送出時，若既有 raw 值是（解不開的）加密信封，保留之，
+	 * 避免被解密後的空字串覆寫——否則會清掉「需重新輸入」狀態與後台提示
+	 * （搬站 / 安全金鑰變動情境，見 v1.0.6）。
+	 *
+	 * @param array<string, mixed> $sanitized
+	 * @param array<string, mixed> $raw
+	 * @return array<string, mixed>
+	 */
+	private static function preserve_unusable_verify_key( array $sanitized, array $raw ): array {
+		$posted = is_scalar( $raw['verify_key'] ?? '' ) ? trim( (string) ( $raw['verify_key'] ?? '' ) ) : '';
+		if ( '' !== $posted ) {
+			return $sanitized; // 使用者有重填 → 照常套用。
+		}
+
+		if ( '' !== (string) ( $sanitized['verify_key'] ?? '' ) ) {
+			return $sanitized; // retain 後仍非空（正常可解情形）→ 照常。
+		}
+
+		$stored   = get_option( self::OPTION_SETTINGS, [] );
+		$raw_vkey = is_array( $stored ) ? (string) ( $stored['verify_key'] ?? '' ) : '';
+
+		if ( '' !== $raw_vkey && self::looks_encrypted( $raw_vkey ) ) {
+			$sanitized['verify_key'] = $raw_vkey; // 保留原加密信封，維持需重輸入狀態與提示。
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * 值是否看似 YSCrypto 加密信封（base64( iv[12]+tag[16]+ciphertext )、解碼 >= 28 bytes）。
+	 */
+	private static function looks_encrypted( string $value ): bool {
+		$decoded = base64_decode( $value, true );
+
+		return false !== $decoded && strlen( $decoded ) >= 28;
 	}
 
 	/**
