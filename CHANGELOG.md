@@ -13,6 +13,26 @@
 - v1.1：EPSON IP 列印（特殊版型 + 印表機 IP）
 - v1.1：註銷發票（types=Void）
 
+## [1.0.5] - 2026-06-15
+
+### Security
+
+- Fail closed when the stored Verify_key cannot be decrypted. The Verify_key is stored encrypted
+  with this site's keys; after a site migration or a change to WordPress security keys
+  (SECURE_AUTH_KEY, etc.) the existing ciphertext can no longer be decrypted. The previous version
+  passed the undecryptable ciphertext through as if it were the key, so SmilePay only returned
+  "merchant account not found" with no clear cause. This version detects an
+  envelope-shaped-but-undecryptable value and returns an empty string (the provider treats it as
+  unconfigured) instead of sending invalid ciphertext. Plaintext keys from older installs still
+  pass through unchanged.
+
+### Added
+
+- Admin guidance: when the Verify_key cannot be decrypted, an admin notice explains the likely
+  cause (migration / security-key change) and links straight to the settings page to re-enter the
+  Verify_key, restoring invoice issuance in one step.
+- Regression v107 (fail-closed + guidance notice contract).
+
 ## [1.0.4] - 2026-06-15
 
 ### Security

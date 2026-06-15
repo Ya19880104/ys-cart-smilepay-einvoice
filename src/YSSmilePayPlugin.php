@@ -77,6 +77,9 @@ final class YSSmilePayPlugin {
 				'admin_post_ys_ec_test_smilepay_connection',
 				[ '\YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin', 'handle_test_connection' ]
 			);
+
+			// 驗證碼無法解密（搬站 / 安全金鑰變動）時，後台引導重新輸入。
+			add_action( 'admin_notices', [ $this, 'maybe_render_verify_key_notice' ] );
 		}
 
 		add_action( 'admin_footer', [ $this, 'render_admin_order_invoice_print_links' ] );
@@ -90,6 +93,42 @@ final class YSSmilePayPlugin {
 			'ys-cart-smilepay-einvoice',
 			false,
 			dirname( YS_SMILEPAY_BASENAME ) . '/languages/'
+		);
+	}
+
+	/**
+	 * 後台提示：驗證碼無法解密時，明確引導使用者重新輸入。
+	 *
+	 * 觸發：smilepay 已啟用、且 verify_key 為加密信封卻以本站金鑰解不開
+	 * （網站搬遷 / 安全金鑰變動）。屬營收影響（無法開立發票），用 error 級提示。
+	 */
+	public function maybe_render_verify_key_notice(): void {
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( '1' !== (string) get_option( 'ys_ec_smilepay_enabled', '0' ) ) {
+			return;
+		}
+
+		$provider_class = '\YangSheep\SmilePayEInvoice\Providers\YSSmilePayInvoiceProvider';
+		if ( ! class_exists( $provider_class ) ) {
+			return;
+		}
+
+		$provider = new $provider_class();
+		if ( ! method_exists( $provider, 'verify_key_needs_reentry' ) || ! $provider->verify_key_needs_reentry() ) {
+			return;
+		}
+
+		$settings_url = admin_url( 'admin.php?page=' . \YangSheep\SmilePayEInvoice\Admin\YSSmilePayAdmin::MENU_SLUG );
+
+		printf(
+			'<div class="notice notice-error"><p><strong>%s</strong><br>%s</p><p><a class="button button-primary" href="%s">%s</a></p></div>',
+			esc_html__( '速買配電子發票：驗證碼無法解密，目前無法開立發票。', 'ys-cart-smilepay-einvoice' ),
+			esc_html__( '常見原因為網站搬遷或 WordPress 安全金鑰（SECURE_AUTH_KEY 等）變動，使先前加密儲存的驗證碼無法以目前金鑰還原。請至設定頁重新輸入「速買配驗證碼（Verify_key）」並儲存即可恢復；其餘設定不受影響。', 'ys-cart-smilepay-einvoice' ),
+			esc_url( $settings_url ),
+			esc_html__( '前往重新輸入驗證碼 →', 'ys-cart-smilepay-einvoice' )
 		);
 	}
 

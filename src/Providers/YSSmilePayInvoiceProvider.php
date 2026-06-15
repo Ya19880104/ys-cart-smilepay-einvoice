@@ -559,7 +559,13 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 	// ──────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Decrypt Verify_key from storage while keeping plaintext fallback for old installs.
+	 * Decrypt Verify_key from storage.
+	 *
+	 * - 明文（舊安裝 / 未加密）→ 原樣 passthrough（相容）。
+	 * - 加密信封且可解 → 回明文。
+	 * - 加密信封但解不開（網站搬遷 / WordPress 安全金鑰 SECURE_AUTH_KEY 等變動）→ 回 ''
+	 *   （fail-closed）。絕不把無法解密的 blob 當金鑰送往 SmilePay，否則 API 只回
+	 *   「查無商家帳號」難以排查；後台會偵測此狀態並引導重新輸入（verify_key_needs_reentry）。
 	 */
 	private function decrypt_verify_key( string $verify_key ): string {
 		$verify_key = trim( $verify_key );
@@ -567,12 +573,50 @@ class YSSmilePayInvoiceProvider implements YSInvoiceProviderInterface {
 			return $verify_key;
 		}
 
-		try {
-			$decrypted = YSCrypto::decrypt_from_storage( $verify_key );
-			return '' !== $decrypted ? $decrypted : $verify_key;
-		} catch ( \Throwable $e ) {
+		// 不像加密信封 → 視為明文 passthrough（保留舊安裝相容）。
+		if ( ! $this->looks_encrypted( $verify_key ) ) {
 			return $verify_key;
 		}
+
+		try {
+			$decrypted = YSCrypto::decrypt_from_storage( $verify_key );
+		} catch ( \Throwable $e ) {
+			$decrypted = '';
+		}
+
+		// 看似加密但解不開 → fail-closed（回 ''），不 passthrough 加密 blob。
+		return $decrypted;
+	}
+
+	/**
+	 * 後台是否該提示「驗證碼無法解密、請重新輸入」。
+	 *
+	 * 條件：raw 設定值看似 YSCrypto 加密信封、但以本站金鑰解不開
+	 * （常見於網站搬遷或 SECURE_AUTH_KEY / SALT 變動）。
+	 */
+	public function verify_key_needs_reentry(): bool {
+		$stored = get_option( self::OPTION_SETTINGS, [] );
+		$raw    = is_array( $stored ) ? trim( (string) ( $stored['verify_key'] ?? '' ) ) : '';
+
+		if ( '' === $raw || ! class_exists( YSCrypto::class ) || ! $this->looks_encrypted( $raw ) ) {
+			return false;
+		}
+
+		try {
+			return '' === YSCrypto::decrypt_from_storage( $raw );
+		} catch ( \Throwable $e ) {
+			return true;
+		}
+	}
+
+	/**
+	 * 值是否看似 YSCrypto 儲存加密信封：base64( iv[12] + tag[16] + ciphertext )，
+	 * 解碼後 >= 28 bytes。明文驗證碼（~32 字）base64 解碼僅 ~24 bytes（< 28），不會誤判。
+	 */
+	private function looks_encrypted( string $value ): bool {
+		$decoded = base64_decode( $value, true );
+
+		return false !== $decoded && strlen( $decoded ) >= 28;
 	}
 
 	/**

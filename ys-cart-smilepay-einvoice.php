@@ -3,7 +3,7 @@
  * Plugin Name: YS CART 速買配電子發票
  * Plugin URI: https://github.com/Ya19880104/ys-cart-smilepay-einvoice
  * Description: 速買配（SmilePay / 訊航科技）電子發票整合，作為 YS CART 的 invoice provider。提供 B2C / B2B 發票開立、作廢、查詢、載具、捐贈愛心碼與發票列印。
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: YANGSHEEP DESIGN
  * Author URI: https://yangsheep.com.tw
  * Text Domain: ys-cart-smilepay-einvoice
@@ -28,7 +28,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // 外掛常數
-define( 'YS_SMILEPAY_VERSION', '1.0.4' );
+define( 'YS_SMILEPAY_VERSION', '1.0.5' );
 define( 'YS_SMILEPAY_FILE', __FILE__ );
 define( 'YS_SMILEPAY_DIR', plugin_dir_path( __FILE__ ) );
 define( 'YS_SMILEPAY_URL', plugin_dir_url( __FILE__ ) );
